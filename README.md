@@ -345,7 +345,7 @@ A reasoning model reviews all hypotheses and updates their status based on evide
 4. Adjusts confidence scores based on evidence strength
 5. Prepares findings for report generation
 
-**Important:** By default, only `confirmed` findings appear in the final report. Use `--include-all` to include all hypotheses regardless of status.
+**Important:** By default, only `confirmed` findings appear in the final report. Use `--all` to include all hypotheses regardless of status.
 
 ### Step 7: Generate Proof-of-Concepts
 
@@ -389,7 +389,7 @@ Produce comprehensive audit reports with all findings and PoCs:
 ./hound.py report myaudit
 
 # Include all hypotheses, not just confirmed
-./hound.py report myaudit --include-all
+./hound.py report myaudit --all
 
 # Export report to specific location
 ./hound.py report myaudit --output /path/to/report.html
