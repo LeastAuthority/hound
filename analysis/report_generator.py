@@ -831,7 +831,8 @@ and systematic vulnerability assessment across all identified attack surfaces.""
                     'senior_model': hyp.get('senior_model'),
                     'supporting_evidence': hyp.get('supporting_evidence', []),
                     'properties': hyp.get('properties', {}),
-                    'qa_comment': hyp.get('qa_comment', '')  # Include QA comment if available
+                    'qa_comment': hyp.get('qa_comment', ''),  # Include QA comment if available
+                    'status': hyp.get('status'),
                 }
                 findings.append(finding)
         
@@ -2121,6 +2122,7 @@ External dependencies are limited and clearly defined."""
         html_parts = []
         for finding in findings:
             severity = finding['severity']
+            status = self._escape_html(finding.get('status') or 'unknown')
             
             # Format code samples
             code_html = ''
@@ -2147,7 +2149,9 @@ External dependencies are limited and clearly defined."""
             html_parts.append(f'''
             <div class="finding {severity}">
                 <span class="severity-badge severity-{severity}">{severity}</span>
-                <h3>{finding['title']}</h3>
+                <h3>{finding['title']}
+                    <span style="color:#8892a0; font-size:0.8em;">[{status}]</span>
+                </h3>
                 <div class="vulnerability-description">
                     {self._format_paragraphs_html(finding.get('professional_description', finding['description']))}
                 </div>
@@ -2490,7 +2494,7 @@ The audit employed a comprehensive security assessment methodology including:
             if finding.get('qa_comment'):
                 qa_comment = f"\n\n**QA Review:** {finding['qa_comment']}"
             
-            md_parts.append(f"""### [{finding['severity'].upper()}] {finding['title']}
+            md_parts.append(f"""### [{finding['severity'].upper()}] {finding['title']} (Status: {finding['status']})
 
 **Affected:** {finding.get('affected_description', self._describe_affected_components(finding.get('affected', [])))}  
 
