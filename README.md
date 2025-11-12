@@ -588,6 +588,273 @@ Monitor audit progress and completeness:
 # - Percentage completion
 ```
 
+## Prompt Customization for Different Domains
+
+Hound can be customized for different project types (wallet, cryptography, etc.) beyond its default smart contract focus. All AI prompts throughout the system can be tailored to your specific domain by providing a single markdown configuration file.
+
+#### Quick Start
+
+**Default Behavior:** Without any configuration, Hound operates in Smart Contract auditing mode (fully backwards compatible).
+
+**Custom Domain Setup:**
+
+1. Copy the example template:
+   ```bash
+   cp project_specific_prompts.md.example project_specific_prompts.md
+   ```
+
+2. Edit the file to match your domain (see examples below)
+
+3. Run Hound as usual - it will automatically detect and use your custom prompts
+
+#### Configuration Priority
+
+Hound searches for the prompts file in this order:
+
+1. **Explicit path** (if provided to PromptLoader)
+2. **Environment variable**: `HOUND_PROMPTS=/path/to/prompts.md`
+3. **Current directory**: `./project_specific_prompts.md`
+4. **Project root**: Walks up to find `.git`, `pyproject.toml`, etc.
+5. **Smart contract defaults** (backwards compatible)
+
+#### Customizable Sections
+
+The prompts file supports these sections:
+
+- **Domain Information** - Domain name, code unit terminology (e.g., "contracts" vs "services")
+- **Operating Constraints** - What Hound can/cannot do (static analysis boundaries)
+- **Code Unit Prioritization** - What to focus on during systematic coverage
+- **Vulnerability Categories** - Domain-specific vulnerability types to look for
+- **High-Impact Focus** - Critical areas for Phase 2 intuition mode
+- **Mitigation Patterns** - Security patterns to verify in the domain
+- **Observation Examples** - Short annotation examples for graph nodes
+- **Graph Types** - Domain-appropriate graph types for analysis
+- **External Dependencies** - Common libraries to recognize
+- **Node Type Terminology** - Preferred node naming conventions
+
+#### Example: Web Application Security
+
+```markdown
+# Project-Specific Prompts Configuration
+
+## Domain Information
+
+**Domain Name:** Web Application Security
+**Code Units:** route handlers and services
+**State Concept:** session and database state
+
+## Vulnerability Categories (Phase 1 - Coverage)
+
+- Input validation failures
+- SQL injection vulnerabilities
+- Cross-Site Scripting (XSS)
+- Cross-Site Request Forgery (CSRF)
+- Authentication bypasses
+- Authorization failures
+- Insecure deserialization
+
+## High-Impact Focus (Phase 2 - Intuition)
+
+**Primary Impact:** DATA BREACH RISK
+
+**Key Intuition Targets:**
+1. DATA AT RISK: Where can sensitive data be accessed or leaked?
+2. CONTRADICTIONS: What doesn't match between auth claims and checks?
+3. AUTH BYPASSES: Where might authentication be missing?
+4. INJECTION VECTORS: What inputs flow into dangerous sinks?
+
+## Graph Types
+
+**RequestFlow**
+Focus: HTTP routing, middleware chain, and endpoint handlers
+Edge types: routes_to, protected_by, validates, handles
+
+**AuthenticationChain**
+Focus: Authentication, session management, and token handling
+Edge types: authenticates, creates_session, validates_token
+
+**DataValidation**
+Focus: Input validation, sanitization, and encoding
+Edge types: validates, sanitizes, encodes, filters
+```
+
+See `project_specific_prompts.md.example` for complete examples including Web Applications, API Services, and Smart Contracts.
+
+#### Environment Variable Usage
+
+```bash
+# Use a custom prompts file via environment variable
+export HOUND_PROMPTS=/path/to/web-app-prompts.md
+./hound.py agent audit mywebapp
+
+# Or set it per-command
+HOUND_PROMPTS=./api-prompts.md ./hound.py agent audit myapi
+```
+
+#### Verification
+
+Test that your prompts are loaded correctly:
+
+```python
+from utils.prompt_loader import get_prompt_loader
+
+loader = get_prompt_loader()
+print(f"Domain: {loader.get_domain_name()}")
+print(f"Code Units: {loader.get_code_units()}")
+```
+
+#### Migration Guide
+
+**For Existing Smart Contract Projects:**
+
+No action required! The system defaults to smart contract auditing mode when no `project_specific_prompts.md` file is found. Your existing workflows and projects will continue working exactly as before. This is fully backwards compatible.
+
+**For New Project Types (Web Apps, APIs, Native Code):**
+
+1. **Copy the appropriate template:**
+   ```bash
+   # Copy the example template
+   cp project_specific_prompts.md.example project_specific_prompts.md
+   ```
+
+2. **Choose your domain template:**
+   - The example file contains templates for:
+     - Smart Contracts (default)
+     - Web Applications
+     - API Services
+   - Copy the relevant sections or use as a starting point
+
+3. **Customize for your specific project:**
+   - Update "Domain Information" with your terminology
+   - Modify "Vulnerability Categories" to match your threat model
+   - Adjust "Graph Types" for your architecture
+   - Update "Observation Examples" with domain-specific patterns
+
+4. **Place file in project root:**
+   ```bash
+   # Move to your project directory
+   mv project_specific_prompts.md /path/to/your/project/
+   ```
+
+5. **Verify it's working:**
+   ```python
+   from utils.prompt_loader import get_prompt_loader
+   loader = get_prompt_loader()
+   print(f"Domain: {loader.get_domain_name()}")
+   print(f"Code Units: {loader.get_code_units()}")
+   ```
+
+6. **Run your audit normally:**
+   ```bash
+   ./hound.py project create mywebapp /path/to/code
+   ./hound.py graph build mywebapp --auto --files "src/routes.js,src/auth.js"
+   ./hound.py agent audit mywebapp --mode sweep
+   ```
+
+**Optional: Environment Variable Override**
+
+If you manage multiple project types or want to keep prompts outside the project:
+
+```bash
+# Create a prompts directory
+mkdir -p ~/.hound/prompts
+
+# Copy different domain prompts
+cp examples/web-app-prompts.md ~/.hound/prompts/
+cp examples/api-prompts.md ~/.hound/prompts/
+
+# Use per-audit
+export HOUND_PROMPTS=~/.hound/prompts/web-app-prompts.md
+./hound.py agent audit mywebapp
+
+# Or per-command
+HOUND_PROMPTS=~/.hound/prompts/api-prompts.md ./hound.py agent audit myapi
+```
+
+#### Troubleshooting
+
+**Prompts file not found:**
+- **Symptom:** Hound uses smart contract defaults when you expect custom prompts
+- **Check:** Verify file name is exactly `project_specific_prompts.md` (case-sensitive, with `.md` extension)
+- **Location:** File must be in current directory, project root, or set via `HOUND_PROMPTS`
+- **Debug:** Run `ls -la project_specific_prompts.md` in your project directory
+- **Solution:** Try setting `HOUND_PROMPTS` environment variable explicitly to full path
+
+**Prompts not being used:**
+- **Symptom:** Custom prompts file exists but doesn't seem to affect behavior
+- **Check sections:** Ensure markdown sections use level-2 headers (`## Section Name`)
+- **Check names:** Section names must match exactly (case-sensitive):
+  - `Domain Information`
+  - `Operating Constraints`
+  - `Vulnerability Categories (Phase 1 - Coverage)`
+  - `High-Impact Focus (Phase 2 - Intuition)`
+  - `Mitigation Patterns`
+  - `Observation Examples`
+  - `Graph Types`
+- **Check encoding:** Verify file has proper UTF-8 encoding (no BOM)
+- **Debug:** Add print statements to see what PromptLoader is loading
+
+**Wrong domain detected:**
+- **Symptom:** Hound reports analyzing "Smart Contract Auditing" when you expect "Web Application"
+- **Check:** Open your `project_specific_prompts.md` and verify the `Domain Information` section has:
+  ```markdown
+  ## Domain Information
+
+  **Domain Name:** Web Application Security
+  ```
+- **Note:** The `**Domain Name:**` line must match exactly with bold formatting
+
+**Sections not parsed correctly:**
+- **Symptom:** Some prompts work but others don't
+- **Check structure:** Each section needs:
+  - Level-2 header: `## Section Name`
+  - Content below the header
+  - Blank line before next section
+- **Bad example:**
+  ```markdown
+  ##Vulnerability Categories
+  - SQL injection
+  ```
+- **Good example:**
+  ```markdown
+  ## Vulnerability Categories (Phase 1 - Coverage)
+
+  - SQL injection
+  - XSS
+  ```
+
+**Testing custom prompts:**
+- Start with small modifications to the example template (don't start from scratch)
+- Test one section at a time to isolate issues
+- Run with `--debug` flag to see actual prompts sent to LLM:
+  ```bash
+  ./hound.py agent audit myproject --debug --time-limit 5
+  ```
+- Check `.hound_debug/` directory for HTML files showing exact prompts
+- Look for your custom text in the prompts to verify injection worked
+
+**Performance concerns:**
+- The prompt loader caches the parsed file on first load
+- No performance impact after initial parsing (<10ms)
+- If concerned, check with:
+  ```python
+  import time
+  from utils.prompt_loader import get_prompt_loader
+  start = time.time()
+  loader = get_prompt_loader()
+  print(f"Load time: {time.time() - start:.3f}s")
+  ```
+
+**Environment variable not working:**
+- **Check spelling:** Must be exactly `HOUND_PROMPTS` (all caps, no spaces)
+- **Check path:** Use absolute path, not relative:
+  ```bash
+  export HOUND_PROMPTS=/full/path/to/prompts.md  # Good
+  export HOUND_PROMPTS=./prompts.md              # May not work
+  ```
+- **Verify export:** Run `echo $HOUND_PROMPTS` to confirm variable is set
+- **Check file exists:** Run `cat $HOUND_PROMPTS` to verify path is correct
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.

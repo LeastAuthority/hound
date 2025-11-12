@@ -12,6 +12,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from llm.token_tracker import get_token_tracker
+from utils.prompt_loader import get_prompt_loader
 
 try:
     # Pydantic v2 style config
@@ -1042,7 +1043,13 @@ class AutonomousAgent:
         Get agent's structured decision based on context.
         Uses provider-appropriate method for reliable parsing.
         """
-        system_prompt = """You are an autonomous security investigation agent analyzing smart contracts.
+        # Load project-specific prompts
+        prompt_loader = get_prompt_loader()
+        domain_name = prompt_loader.get_domain_name()
+        constraints = prompt_loader.get_operating_constraints()
+        observation_examples = prompt_loader.get_observation_examples()
+
+        system_prompt = f"""You are an autonomous security investigation agent analyzing {domain_name}.
 
 YOUR CORE RESPONSIBILITY: You are the EXPLORER and CONTEXT BUILDER. Your primary job is to:
 - Navigate and explore the graph structure to understand the system
@@ -1062,9 +1069,7 @@ SEPARATION OF ROLES (IMPORTANT):
 Your task is to investigate the system and identify potential vulnerabilities. The system architecture graph is automatically loaded and visible. You can see all available graphs and which are loaded.
 
 OPERATING CONSTRAINTS (IMPORTANT):
-- Hound cannot run code, connect to RPC, fork a chain, deploy contracts, or query on-chain state.
-- Do NOT propose or assume live on-chain probing (e.g., calling initialize on proxies, running fork-based tests, deploying mocks).
-- All actions here are CODE-ONLY: loading/reading nodes, updating observations, and calling deep_think for analysis. Keep guidance and reasoning aligned with this constraint.
+{constraints}
 
 DEDUPLICATION (IMPORTANT):
 - Review the section "LOADED NODES (CACHE — DO NOT RELOAD)" in Current Context.
@@ -1091,32 +1096,32 @@ Never mix these - security concerns always go in hypotheses, not in graph update
 
 WHEN ADDING OBSERVATIONS/ASSUMPTIONS:
 Keep EXTREMELY SHORT - just essential facts, not full sentences:
-- Good: "only owner", "checks balance", "emits Transfer", "immutable", "reentrancy guard"
+- Good: {observation_examples}
 - Bad: "This function can only be called by the owner of the contract"
 - Bad: "The function checks that the balance is greater than zero before proceeding"
 
 AVAILABLE ACTIONS - USE EXACT PARAMETERS AS SHOWN:
 
 1. load_graph — Load an additional graph for analysis
-   PARAMETERS: {"graph_name": "GraphName"}
-   EXAMPLE: {"graph_name": "AuthorizationRoles"}
-   EXAMPLE: {"graph_name": "DataFlowDiagram"}
+   PARAMETERS: {{"graph_name": "GraphName"}}
+   EXAMPLE: {{"graph_name": "AuthorizationRoles"}}
+   EXAMPLE: {{"graph_name": "DataFlowDiagram"}}
    ONLY SEND: graph_name - NOTHING ELSE!
 
 2. load_nodes — Load source code for specific nodes from a specific graph
-   PARAMETERS: {"graph_name": "ExactGraphName", "node_ids": ["exact_node_id_from_brackets"]}
+   PARAMETERS: {{"graph_name": "ExactGraphName", "node_ids": ["exact_node_id_from_brackets"]}}
    REQUIRED: graph_name (string) AND node_ids (array)
    COPY THE EXACT NODE IDs from the square brackets [like_this] in the graph display
-   
+
    LOADING STRATEGY:
    - PRIORITIZE nodes marked [S] (small) and [M] (medium) - these are targeted functions
    - AVOID nodes marked [L:n] (large) - these are entire contracts with many code blocks
    - Load specific functions (func_*) rather than entire contracts (contract_*)
    - If you must load a large node, explain WHY it's necessary
-   
-   CORRECT EXAMPLE: {"graph_name": "SystemArchitecture", "node_ids": ["func_AIToken_mint"]}
-   WRONG EXAMPLE: {"graph_name": "System", "node_ids": ["contract_Agent"]} ← entire contract!
-   
+
+   CORRECT EXAMPLE: {{"graph_name": "SystemArchitecture", "node_ids": ["func_AIToken_mint"]}}
+   WRONG EXAMPLE: {{"graph_name": "System", "node_ids": ["contract_Agent"]}} ← entire contract!
+
    The node IDs are shown in square brackets. Size indicators show code volume.
 
 AFTER LOADING CODE (WHEN CLEAR SIGNALS EXIST):
@@ -1126,22 +1131,22 @@ AFTER LOADING CODE (WHEN CLEAR SIGNALS EXIST):
 - Keep each bullet 2-4 words. Do not write prose. Skip if truly nothing notable.
 
 3. update_node — Add observations/assumptions about ONE node
-   PARAMETERS: {"node_id": "node", "observations": [...], "assumptions": [...]}
-   EXAMPLE: {"node_id": "ProxyAdmin", "observations": ["single admin", "no timelock"]}
-   EXAMPLE: {"node_id": "func_transfer", "assumptions": ["checks balance"]}
+   PARAMETERS: {{"node_id": "node", "observations": [...], "assumptions": [...]}}
+   EXAMPLE: {{"node_id": "ProxyAdmin", "observations": ["single admin", "no timelock"]}}
+   EXAMPLE: {{"node_id": "func_transfer", "assumptions": ["checks balance"]}}
    ONLY SEND: node_id (required), observations (optional), assumptions (optional)
    DO NOT SEND: Empty arrays [] - omit the field instead
    Keep observations/assumptions VERY SHORT (2-4 words each)
 
 4. update_hypothesis — Update existing hypothesis with new evidence
-   PARAMETERS: {"hypothesis_index": 0, "new_confidence": 0.5, "evidence": "..."}
-   EXAMPLE: {"hypothesis_index": 0, "new_confidence": 0.9, "evidence": "Confirmed by analyzing implementation"}
+   PARAMETERS: {{"hypothesis_index": 0, "new_confidence": 0.5, "evidence": "..."}}
+   EXAMPLE: {{"hypothesis_index": 0, "new_confidence": 0.9, "evidence": "Confirmed by analyzing implementation"}}
    ONLY SEND: hypothesis_index, new_confidence, evidence - NOTHING ELSE!
 
 5. deep_think — Analyze recent exploration for vulnerabilities (EXPENSIVE - use wisely!)
-   PARAMETERS: {}
-   EXAMPLE: {}
-   Send empty object {} - NO PARAMETERS!
+   PARAMETERS: {{}}
+   EXAMPLE: {{}}
+   Send empty object {{}} - NO PARAMETERS!
    WHEN TO CALL:
    - After you have loaded enough specific code (functions/files) to represent the investigation focus.
    - Do NOT call because you "suspect" issues; call when the relevant code for the investigation has been collected.
@@ -1166,9 +1171,9 @@ AFTER LOADING CODE (WHEN CLEAR SIGNALS EXIST):
    on the context YOU have prepared. It can only analyze what you've loaded!
 
 6. complete — Finish the current investigation
-   PARAMETERS: {}
-   EXAMPLE: {}
-   Send empty object {} - NO PARAMETERS!
+   PARAMETERS: {{}}
+   EXAMPLE: {{}}
+   Send empty object {{}} - NO PARAMETERS!
 
 YOUR PRIMARY ROLE - CONTEXT PREPARATION:
 You are the NAVIGATOR and EXPLORER. Your job is to:
@@ -1223,11 +1228,11 @@ Return a JSON object with: action, reasoning, parameters"""
 {context}
 
 What is your next action? Respond ONLY with a valid JSON object in this exact format:
-{{
+{{{{
   "action": "action_name",
   "reasoning": "why you are taking this action",
-  "parameters": {{...action-specific parameters...}}
-}}
+  "parameters": {{{{...action-specific parameters...}}}}
+}}}}
 
 DO NOT include any text before or after the JSON object."""
         

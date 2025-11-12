@@ -1,0 +1,637 @@
+# Project-Specific Prompts Configuration
+
+[This file allows you to customize Hound's analysis prompts for your specific project type. Copy this template to `project_specific_prompts.md` in your project root and replace all bracketed instructions with your project-specific information.]
+
+[**Important:** If no customization file is found, Hound defaults to Smart Contract auditing mode.]
+
+---
+
+## Domain Information
+
+**Domain Name:** [Specify the domain you're analyzing. Examples for crypto/blockchain projects:
+- "ZK-SNARK Circuit Auditing" (for zero-knowledge proof circuits)
+- "ECDSA Cryptography Implementation Review" (for signature schemes)
+- "Blockchain Node Security" (for consensus clients, execution clients)
+- "Smart Contract Auditing" (for on-chain code - default)
+- "Crypto Wallet Security" (for key management and transaction signing)
+- "Blockchain Protocol Implementation" (for custom L1/L2 protocols)
+This tells Hound what type of codebase it's analyzing.]
+
+**Code Units:** [Specify the primary code organization units in your project. Examples:
+- For ZK circuits: "circuits and constraint systems"
+- For cryptography: "cryptographic primitives and protocols"
+- For blockchain nodes: "consensus modules, p2p handlers, and state managers"
+- For smart contracts: "smart contracts and protocol modules"
+- For wallets: "key management modules and transaction builders"
+This defines how code is structured in your domain.]
+
+**State Concept:** [Describe how state is managed in your domain. Examples:
+- For ZK circuits: "witness values and constraint satisfaction"
+- For cryptography: "key material and cryptographic state"
+- For blockchain nodes: "blockchain state, mempool, and peer connections"
+- For smart contracts: "on-chain state (storage, balances)"
+- For wallets: "private keys, derived addresses, and transaction state"
+This helps Hound understand where critical data lives.]
+
+---
+
+## Operating Constraints
+
+[Define what Hound CAN and CANNOT do during analysis. This sets expectations for the analysis scope.]
+
+[Examples for crypto/blockchain domains:]
+
+[For ZK-SNARK circuits:]
+- Hound performs static circuit analysis only - it cannot generate proofs, execute circuits with witnesses, or run trusted setup ceremonies.
+- Do NOT propose or assume runtime circuit execution (e.g., computing proofs, generating witnesses, testing with specific inputs).
+- All actions are CODE-ONLY: analyzing constraint systems, mapping signal flows, checking arithmetic operations.
+
+[For blockchain nodes:]
+- Hound performs static code analysis only - it cannot sync the blockchain, connect to peer networks, or execute transactions.
+- Do NOT propose or assume live network operations (e.g., syncing mainnet, connecting to peers, sending transactions, querying RPC).
+- All actions are CODE-ONLY: analyzing consensus logic, mapping message flows, checking state transitions.
+
+[For smart contracts:]
+- Hound cannot run code, connect to RPC, fork a chain, deploy contracts, or query on-chain state.
+- Do NOT propose or assume live on-chain probing (e.g., calling initialize on proxies, running fork-based tests, deploying mocks).
+- All actions are CODE-ONLY: loading/reading contracts, mapping call graphs, analyzing storage patterns.
+
+[For crypto wallets:]
+- Hound performs static analysis only - it cannot generate keys, sign transactions, or interact with hardware wallets.
+- Do NOT propose or assume runtime operations (e.g., deriving keys, signing messages, broadcasting transactions, accessing secure enclaves).
+- All actions are CODE-ONLY: analyzing key derivation logic, mapping transaction construction, checking signature implementations.
+
+[**Tip:** Be specific about limitations to prevent the AI from suggesting impossible actions like "let's test this with a real proof" or "deploy to testnet".]
+
+---
+
+## Code Unit Prioritization (Phase 1)
+
+[This section guides Phase 1 "Coverage Mode" - systematic analysis of each component.]
+
+Target medium-sized units: [List the types of code units to analyze. Examples:
+- For ZK circuits: "constraint generation functions, circuit gadgets, witness calculators"
+- For cryptography: "signature functions, key derivation functions, encryption/decryption routines"
+- For blockchain nodes: "consensus handlers, block processors, transaction validators, p2p message handlers"
+- For smart contracts: "contracts, protocol modules, library functions"
+- For wallets: "key derivation modules, transaction signers, address generators, mnemonic handlers"]
+
+Prioritize components:
+[List 3-5 criteria for which components are most critical to analyze first. Examples for crypto/blockchain:]
+
+[For ZK circuits:]
+- Handling witness inputs and public inputs
+- Performing field arithmetic and constraint generation
+- Implementing cryptographic primitives (hashing, signatures)
+- Managing circuit composition and gadget integration
+
+[For blockchain nodes:]
+- Handling consensus-critical state transitions
+- Processing blocks and transactions
+- Validating cryptographic proofs and signatures
+- Managing p2p message handling and DOS protection
+
+[For smart contracts:]
+- Handling asset transfers or monetary value
+- Implementing access control and authorization
+- Managing upgradeable proxies or admin functions
+- Integrating with external oracles or bridges
+
+[For wallets:]
+- Deriving and storing private keys
+- Constructing and signing transactions
+- Handling mnemonic generation and recovery
+- Managing multi-signature or threshold schemes
+
+[**Tip:** Focus on components that handle cryptographic operations, value transfer, or consensus-critical logic.]
+
+---
+
+## Vulnerability Categories (Phase 1 - Coverage)
+
+[List the specific vulnerability types relevant to your domain. This guides systematic vulnerability scanning during Phase 1.]
+
+Look for these vulnerability types during systematic analysis:
+
+[For ZK-SNARK circuits:]
+- Under-constrained circuits (missing constraints)
+- Arithmetic overflow/underflow in field operations
+- Constraint system bugs (unsatisfiable or trivially satisfiable)
+- Soundness violations (accepting invalid proofs)
+- Completeness violations (rejecting valid proofs)
+- Witness malleability (multiple valid witnesses)
+- Trusted setup compromise vectors
+- Circuit composition errors
+
+[For ECDSA/Cryptography:]
+- Weak randomness in nonce generation
+- Signature malleability issues
+- Timing side-channels in constant-time operations
+- Key reuse or improper key derivation
+- Insecure curve parameters or point validation
+- Missing point-at-infinity checks
+- Improper hash-to-curve implementations
+- Side-channel leakage (cache timing, power analysis)
+
+[For blockchain nodes:]
+- Consensus safety violations (forking, double-spend)
+- Liveness failures (chain halts, deadlocks)
+- P2P DoS vectors (resource exhaustion, amplification)
+- State corruption or invalid state transitions
+- Block/transaction validation bypasses
+- Memory exhaustion in mempool or state
+- Eclipse attacks or peer isolation
+- Reorg handling vulnerabilities
+
+[For smart contracts:]
+- Reentrancy vulnerabilities
+- Access control issues
+- Integer overflow/underflow
+- Oracle manipulation
+- Front-running and MEV risks
+- Logic errors in state transitions
+- Proxy upgrade vulnerabilities
+- Missing validation of external calls
+
+[For crypto wallets:]
+- Private key leakage or insecure storage
+- Weak key derivation (predictable keys)
+- Transaction signature malleability
+- Replay attacks across chains
+- Mnemonic entropy issues
+- Insecure randomness for key generation
+- Missing transaction validation
+- Address validation bypasses
+
+[**Tip:** Research domain-specific vulnerability databases - for crypto/blockchain see: DeFi exploit databases, ZK security audits, consensus bug bounties, cryptographic implementation CVEs.]
+
+---
+
+## High-Impact Focus (Phase 2 - Intuition)
+
+[This section guides Phase 2 "Intuition Mode" - focused hunting for high-severity issues.]
+
+**Primary Impact:** [Define the MOST CRITICAL impact type to prioritize. Examples:
+- For ZK circuits: "SOUNDNESS VIOLATIONS - prioritize bugs that allow invalid proofs to verify"
+- For cryptography: "CRYPTOGRAPHIC BREAKS - prioritize bugs that compromise key security or signature integrity"
+- For blockchain nodes: "CONSENSUS FAILURES - prioritize bugs that cause chain splits, double-spends, or liveness failures"
+- For smart contracts: "MONETARY IMPACT - prioritize vulnerabilities that lead to loss of funds"
+- For wallets: "PRIVATE KEY COMPROMISE - prioritize bugs that leak or weaken key material"]
+
+**Key Intuition Targets:**
+[List exactly 4 specific high-impact areas to investigate. Examples for each domain:]
+
+[For ZK-SNARK circuits:]
+1. SOUNDNESS AT RISK: Where can an adversary forge invalid proofs that verify?
+2. UNDER-CONSTRAINTS: What critical properties lack sufficient constraints?
+3. ARITHMETIC ERRORS: Where can field overflow or wraparound break security assumptions?
+4. WITNESS MALLEABILITY: What allows multiple witnesses for the same statement?
+
+[For ECDSA/Cryptography:]
+1. KEY MATERIAL LEAKAGE: Where can private keys or nonces be recovered or predicted?
+2. SIDE-CHANNEL VECTORS: What operations are not constant-time and leak secrets?
+3. PARAMETER VALIDATION: Where are curve points, scalars, or keys insufficiently validated?
+4. RANDOMNESS FAILURES: What relies on weak or predictable entropy sources?
+
+[For blockchain nodes:]
+1. CONSENSUS SAFETY: Where can validators disagree on chain state or finality?
+2. STATE CORRUPTION: What could cause invalid state transitions or database corruption?
+3. DOS AMPLIFICATION: Where can attackers exhaust resources (CPU, memory, network)?
+4. VALIDATION BYPASSES: Where might invalid blocks or transactions be accepted?
+
+[For smart contracts:]
+1. VALUE AT RISK: Where can money be stolen, locked, or manipulated?
+2. CONTRADICTIONS: What doesn't match between docs, assumptions, and actual code?
+3. AUTH BYPASSES: Where might access control or permission checks fail?
+4. STATE CORRUPTION: What could break critical protocol invariants?
+
+[For crypto wallets:]
+1. KEY COMPROMISE: Where can private keys be leaked, predicted, or weakly derived?
+2. TRANSACTION INTEGRITY: Where can transactions be malformed, replayed, or front-run?
+3. SECURE STORAGE: What key material lacks proper encryption or isolation?
+4. VALIDATION FAILURES: Where are addresses, amounts, or chain IDs insufficiently validated?
+
+[**Tip:** Think about what keeps you up at night - protocol-level breaks, consensus failures, soundness violations, or catastrophic key leakage.]
+
+---
+
+## Mitigation Patterns
+
+[List common security controls or defensive patterns in your codebase that Hound should verify are present and correctly implemented.]
+
+Common security patterns to verify:
+
+[For ZK-SNARK circuits:]
+- Constraint completeness checks (all signals constrained)
+- Range checks for field elements
+- Input validation constraints (public inputs, witness bounds)
+- Non-zero enforcement for denominators
+- Boolean constraints for binary signals
+- Uniqueness constraints for identifiers
+
+[For ECDSA/Cryptography:]
+- Constant-time operations (no data-dependent branches/memory access)
+- Nonce generation from secure CSPRNG
+- Point validation (on-curve checks, subgroup checks)
+- Scalar validation (range checks, non-zero checks)
+- Proper error propagation (no silent failures)
+- Key zeroization after use
+
+[For blockchain nodes:]
+- Block validation checks (PoW/PoS, signatures, state root)
+- Transaction validation (nonce, gas, signature)
+- State transition verification
+- Resource limits (gas, block size, memory)
+- Reorg protection (finality rules)
+- P2P rate limiting and peer scoring
+
+[For smart contracts:]
+- Reentrancy guards (nonReentrant modifier, checks-effects-interactions)
+- Access control modifiers (onlyOwner, onlyRole)
+- Input validation (require statements, bounds checks)
+- Safe arithmetic (SafeMath, checked operations)
+- Pull payment pattern (withdraw instead of send)
+- Time-delay or multi-sig for admin operations
+
+[For crypto wallets:]
+- Secure key storage (encryption at rest, hardware isolation)
+- BIP32/BIP44 derivation standards
+- Transaction validation (amount, recipient, gas, chain ID)
+- Signature verification before broadcast
+- Replay protection (chain ID, nonce tracking)
+- Mnemonic entropy requirements (128-256 bits)
+
+[**Tip:** Include library-specific patterns (e.g., circomlib gadgets, OpenZeppelin contracts, libsecp256k1 functions, consensus-specs helpers).]
+
+---
+
+## Observation Examples
+
+[Provide short, concise examples of security-relevant observations that Hound might annotate on the graph. Keep each example 2-4 words.]
+
+Good examples for graph annotations (2-4 words each):
+
+[For ZK-SNARK circuits:]
+- "unconstrained signal"
+- "missing range check"
+- "public input"
+- "trusted setup"
+- "gadget composition"
+- "field overflow risk"
+- "boolean constrained"
+- "zero denominator"
+
+[For ECDSA/Cryptography:]
+- "constant-time operation"
+- "nonce from CSPRNG"
+- "point validated"
+- "timing side-channel"
+- "key zeroized"
+- "weak randomness"
+- "missing subgroup check"
+- "signature malleable"
+
+[For blockchain nodes:]
+- "consensus-critical path"
+- "validates block"
+- "state transition"
+- "reorg handling"
+- "DOS vector"
+- "peer reputation"
+- "mempool eviction"
+- "finality check"
+
+[For smart contracts:]
+- "only owner"
+- "reentrancy guard"
+- "checks balance"
+- "external call"
+- "immutable"
+- "access controlled"
+- "SafeMath used"
+- "emits event"
+
+[For crypto wallets:]
+- "derives key"
+- "signs transaction"
+- "encrypted storage"
+- "validates address"
+- "replay protected"
+- "hardware backed"
+- "checks chain ID"
+- "secure enclave"
+
+[**Tip:** These should be quick facts or labels, not full sentences. Think "grep-able" security keywords specific to cryptographic and blockchain operations.]
+
+---
+
+## Graph Types
+
+[This section is CRITICAL - it defines the analytical lenses Hound will use to understand your codebase. Define 6-12 graph types that make sense for your domain.]
+
+### Suggested Graph Types for Analysis
+
+[For EACH graph type, provide:]
+[1. **GraphName** (in bold)]
+[2. Focus: One-line description of what this graph tracks]
+[3. Edge types: Comma-separated list of relationship types]
+
+[**Examples for ZK-SNARK circuits:**]
+
+**ConstraintGraph**
+Focus: Constraint generation and signal relationships in the circuit
+Edge types: constrains, depends_on, derives_from, validates
+
+**WitnessFlow**
+Focus: How witness values propagate through circuit components
+Edge types: computes, uses_signal, propagates_to, assigns
+
+**FieldOperations**
+Focus: Arithmetic operations in the finite field (additions, multiplications, inversions)
+Edge types: adds, multiplies, inverts, reduces_mod
+
+**PublicInputs**
+Focus: Public inputs and their validation/usage throughout the circuit
+Edge types: validates, used_by, exposes, constrains
+
+**GadgetComposition**
+Focus: How circuit gadgets are composed and nested
+Edge types: calls_gadget, composes, instantiates, parameterized_by
+
+**RangeChecks**
+Focus: Range constraint coverage for signals that need bounded values
+Edge types: range_checked, bounded_by, enforces_bits, requires_constraint
+
+[**Examples for ECDSA/Cryptography:**]
+
+**KeyDerivation**
+Focus: Key generation and derivation flows (BIP32, BIP44, custom schemes)
+Edge types: derives, hardens, generates, seeds_from
+
+**SignatureFlow**
+Focus: Signature creation and verification including nonce handling
+Edge types: signs, verifies, generates_nonce, uses_private_key
+
+**ConstantTimeOps**
+Focus: Operations that must be constant-time to prevent side-channels
+Edge types: performs_ct, branches_on_secret, accesses_secret_index, timing_safe
+
+**CurveOperations**
+Focus: Elliptic curve point operations (addition, multiplication, validation)
+Edge types: point_add, scalar_mult, validates_point, on_curve_check
+
+**RandomnessSource**
+Focus: Entropy sources and CSPRNG usage for cryptographic randomness
+Edge types: sources_entropy, seeds, generates_random, relies_on_rng
+
+[**Examples for blockchain nodes:**]
+
+**ConsensusFlow**
+Focus: Consensus protocol state machine and validator actions
+Edge types: proposes, attests, finalizes, validates_block
+
+**BlockValidation**
+Focus: Block validation pipeline from receipt to execution to state update
+Edge types: validates_header, executes_txs, updates_state, verifies_proof
+
+**StateTransitions**
+Focus: How transactions modify world state (accounts, storage, balances)
+Edge types: reads_state, writes_state, modifies_balance, updates_storage
+
+**P2PMessageFlow**
+Focus: Peer-to-peer message handling, gossip, and request-response patterns
+Edge types: gossips, requests, responds, validates_message
+
+**MempoolManagement**
+Focus: Transaction pool operations (insertion, eviction, ordering)
+Edge types: inserts, evicts, replaces, orders_by
+
+**ReorgHandling**
+Focus: Chain reorganization logic and handling of competing forks
+Edge types: switches_fork, reverts_block, applies_block, tracks_head
+
+[**Examples for smart contracts:**]
+
+**AuthorizationMap**
+Focus: Role-based access control and permission grants
+Edge types: grants, assumes, authorizes, guarded_by, requires_role
+
+**AssetFlow**
+Focus: Token/ETH flows (mint, burn, transfer, deposit, withdraw)
+Edge types: mints, burns, transfers, deposits, withdraws
+
+**StateMutation**
+Focus: Storage variables and functions that read/write them
+Edge types: reads, writes, modifies, derives_from
+
+**Reentrancy**
+Focus: External calls and potential reentrancy paths
+Edge types: calls_external, reentrant_path, state_before, state_after
+
+**UpgradeLifecycle**
+Focus: Proxy patterns, initialization, and upgrade mechanisms
+Edge types: deploys, initializes, upgrades, delegates_to
+
+**OracleIntegration**
+Focus: External data dependencies and trust boundaries
+Edge types: reads_oracle, trusts, validates, relies_on
+
+[**Examples for crypto wallets:**]
+
+**KeyManagement**
+Focus: Private key lifecycle (generation, derivation, storage, zeroization)
+Edge types: generates, derives, stores, encrypts, zeroizes
+
+**TransactionConstruction**
+Focus: How transactions are built, validated, and signed
+Edge types: constructs, validates_amount, signs, broadcasts
+
+**AddressDerivation**
+Focus: HD wallet address derivation paths (BIP32/BIP44)
+Edge types: derives_address, hardens, follows_bip44, generates_pubkey
+
+**SecureStorage**
+Focus: Where and how sensitive data (keys, seeds) are persisted
+Edge types: encrypts, stores_in, protects_with, requires_auth
+
+**ReplayProtection**
+Focus: Chain ID handling and nonce tracking to prevent replays
+Edge types: includes_chain_id, tracks_nonce, validates_chain, prevents_replay
+
+**MultiSigThreshold**
+Focus: Multi-signature or threshold signature schemes
+Edge types: requires_signatures, aggregates, validates_threshold, combines_shares
+
+[**Tip:** Choose 6-12 graph types that provide DIFFERENT analytical lenses. For crypto/blockchain, focus on: cryptographic operations, state transitions, consensus mechanisms, key management, validation pipelines, and trust boundaries.]
+
+---
+
+## External Dependencies Examples
+
+[List common third-party libraries, frameworks, or standard libraries that should be EXCLUDED from detailed node creation because they are well-known and trusted.]
+
+Common external libraries/frameworks to exclude from node creation:
+
+[For ZK-SNARK circuits:]
+- circomlib (standard circuit library)
+- snarkjs (proof generation and verification)
+- bellman (zk-SNARK library)
+- arkworks (cryptography library)
+- halo2 (zkSNARK proving system)
+
+[For ECDSA/Cryptography:]
+- libsecp256k1 (ECDSA library)
+- OpenSSL/BoringSSL (crypto primitives)
+- ring (Rust crypto library)
+- noble-curves (JS cryptography)
+- GMP/MPFR (arbitrary precision math)
+- BearSSL (embedded crypto)
+
+[For blockchain nodes:]
+- Go-Ethereum/Geth (Ethereum client)
+- Prysm/Lighthouse/Teku (consensus clients)
+- libp2p (p2p networking)
+- LevelDB/RocksDB (database)
+- Prometheus (metrics)
+- consensus-specs (Ethereum spec)
+
+[For smart contracts:]
+- OpenZeppelin (security library)
+- Chainlink (oracle framework)
+- SafeMath (arithmetic library - pre-Solidity 0.8)
+- UUPS/Transparent proxies (upgrade patterns)
+- ds-test/forge-std (testing frameworks)
+
+[For crypto wallets:]
+- ethers.js/web3.js (Ethereum libraries)
+- bitcoinjs-lib (Bitcoin library)
+- bip39 (mnemonic library)
+- hdkey (BIP32 implementation)
+- scrypt/argon2 (KDF libraries)
+- Trezor/Ledger SDKs (hardware wallet interfaces)
+
+[**Tip:** Include well-audited, standard crypto/blockchain libraries. This helps Hound focus on YOUR implementation logic, not battle-tested dependencies. However, DO analyze how you USE these libraries (parameter validation, error handling, etc.).]
+
+---
+
+## Node Type Terminology
+
+[Define what types of nodes (code entities) Hound should create in the analysis graphs. This helps structure the graph properly.]
+
+**Preferred node types:**
+
+[For ZK-SNARK circuits:]
+- Circuit-level nodes (e.g., "circuit_MerkleProof", "circuit_Poseidon")
+- Gadget/template nodes (e.g., "gadget_RangeCheck", "template_EdDSAVerifier")
+- Signal nodes (e.g., "signal_publicInput", "signal_intermediateHash")
+- Constraint nodes (only when analyzing specific constraint bugs)
+
+[For ECDSA/Cryptography:]
+- Function-level nodes (e.g., "func_sign_ecdsa", "func_verify_signature")
+- Primitive nodes (e.g., "primitive_sha256", "primitive_scalar_mult")
+- Key material nodes (e.g., "privkey_generated", "pubkey_derived")
+- Operation nodes (e.g., "op_point_add", "op_mod_inverse")
+
+[For blockchain nodes:]
+- Function-level nodes (e.g., "func_validateBlock", "func_processTransaction")
+- Handler nodes (e.g., "handler_p2p_block", "handler_consensus_vote")
+- State nodes (e.g., "state_accountBalances", "state_blockchainHead")
+- Validator nodes (e.g., "validator_checkProof", "validator_verifySignature")
+
+[For smart contracts:]
+- Function-level nodes (e.g., "func_transfer", "func_mint")
+- Storage-level nodes (e.g., "storage_balances", "storage_owner")
+- Modifier nodes (e.g., "modifier_onlyOwner", "modifier_nonReentrant")
+- Contract-level nodes (only when necessary for architecture overview)
+
+[For crypto wallets:]
+- Function-level nodes (e.g., "func_deriveKey", "func_signTransaction")
+- Key derivation nodes (e.g., "derive_bip44_path", "derive_hardened")
+- Transaction nodes (e.g., "tx_construct", "tx_validate", "tx_sign")
+- Storage nodes (e.g., "storage_encryptedSeed", "storage_keychain")
+
+[**Tip:** Be specific about naming conventions. For crypto/blockchain, prefer function-level granularity and distinguish between trusted operations (e.g., standard library calls) and security-critical custom logic.]
+
+---
+
+## Additional Notes
+
+[Optional section: Add any other project-specific guidance, domain knowledge, or special considerations that might help Hound analyze your codebase more effectively.]
+
+[Examples for crypto/blockchain projects:]
+
+[For ZK-SNARK circuits:]
+- Trusted setup ceremony details (if applicable)
+- Field modulus and curve parameters in use
+- Known soundness assumptions (e.g., "relies on discrete log assumption over BN254")
+- Performance-critical constraint count targets
+- Compatibility requirements (e.g., "must work with Groth16 backend")
+
+[For ECDSA/Cryptography:]
+- Curves in use (secp256k1, secp256r1, ed25519, BLS12-381, etc.)
+- Constant-time requirements for all secret-dependent operations
+- Side-channel threat model (timing, power, cache, fault injection)
+- Compliance standards (FIPS 140-2, Common Criteria, etc.)
+- Known cryptographic assumptions (e.g., "relies on hardness of ECDLP")
+
+[For blockchain nodes:]
+- Consensus mechanism (PoW, PoS, BFT, etc.)
+- Fork choice rule and finality guarantees
+- Known consensus attacks to defend against (long-range, nothing-at-stake, etc.)
+- Performance targets (TPS, block time, state size)
+- Network upgrade/hard fork handling
+
+[For smart contracts:]
+- Upgrade patterns in use (transparent proxy, UUPS, beacon, etc.)
+- Oracle dependencies and trust assumptions
+- Cross-chain bridge security requirements
+- MEV protection strategies
+- Invariants that must NEVER be violated (e.g., "total supply <= max cap")
+
+[For crypto wallets:]
+- Supported blockchains and derivation paths
+- Hardware wallet integration requirements
+- Secure enclave / SGX / TEE usage
+- Multi-signature or threshold signature schemes
+- Compliance requirements (KYC, AML, sanctions screening)
+- Recovery mechanisms (social recovery, seed phrases, etc.)]
+
+---
+
+## Quick Start Guide
+
+1. **Copy this template:** `cp project_specific_prompts.md.template project_specific_prompts.md`
+2. **Replace all bracketed instructions** with your project-specific information
+3. **Remove all instructional text** (everything in brackets)
+4. **Place the file** in your project root directory
+5. **Run Hound** - it will automatically detect and use your custom prompts
+
+---
+
+## Need Help?
+
+- **For Smart Contract projects:** See the smart contract example in `project_specific_prompts.md.example` (lines 1-132) - this is also the default if no custom prompts are provided
+- **For ZK-SNARK Circuit projects:** Use the examples in this template under "For ZK-SNARK circuits" sections
+- **For Blockchain Node projects:** Use the examples in this template under "For blockchain nodes" sections
+- **For Crypto Wallet projects:** Use the examples in this template under "For crypto wallets" sections
+- **For ECDSA/Cryptography projects:** Use the examples in this template under "For ECDSA/Cryptography" sections
+- **For other blockchain/crypto projects:** Mix and match the crypto/blockchain examples that best fit your domain
+
+---
+
+## Validation Checklist
+
+Before running Hound with your custom prompts, verify:
+
+- [ ] All bracketed instructions have been replaced with actual content
+- [ ] Domain Information section clearly describes your project type
+- [ ] Operating Constraints are specific and accurate
+- [ ] Vulnerability Categories match your technology stack
+- [ ] Graph Types provide diverse analytical perspectives (6-12 types minimum)
+- [ ] Observation Examples are concise (2-4 words each)
+- [ ] External Dependencies list is comprehensive for your frameworks
+- [ ] Node Type Terminology matches your code structure
+
+---
+
+[**Remember:** The better you customize these prompts, the more effective Hound's analysis will be. Take time to make each section specific to your project's security concerns and architecture.]

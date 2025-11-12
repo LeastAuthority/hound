@@ -1,0 +1,383 @@
+# Project-Specific Prompts Configuration
+
+This file allows you to customize Hound's analysis prompts for different project types.
+Copy this file to `project_specific_prompts.md` in your project root and customize the sections below.
+
+**Default behavior:** If no customization file is found, Hound defaults to Smart Contract auditing mode.
+
+## Domain Information
+
+**Domain Name:** Smart Contract Auditing
+**Code Units:** smart contracts
+**State Concept:** on-chain state
+
+## Operating Constraints
+
+- Hound cannot run code, connect to RPC, fork a chain, deploy contracts, or query on-chain state.
+- Do NOT propose or assume live on-chain probing (e.g., calling initialize on proxies, running fork-based tests, deploying mocks).
+- All actions here are CODE-ONLY: loading/reading nodes, updating observations, and calling deep_think for analysis.
+
+## Code Unit Prioritization (Phase 1)
+
+Target medium-sized units: contracts, modules, classes, services
+
+Prioritize components:
+- Handling critical state or permissions
+- With complex logic
+- Interacting with external systems
+
+## Vulnerability Categories (Phase 1 - Coverage)
+
+Look for these vulnerability types during systematic analysis:
+- Missing validation
+- Access control issues
+- Integer overflow/underflow
+- Reentrancy vulnerabilities
+- Logic errors
+- Oracle manipulation
+- Front-running risks
+
+## High-Impact Focus (Phase 2 - Intuition)
+
+**Primary Impact:** MONETARY IMPACT - prioritize vulnerabilities that lead to financial loss
+
+**Key Intuition Targets:**
+1. VALUE AT RISK: Where can money be stolen or locked?
+2. CONTRADICTIONS: What doesn't match between docs and code?
+3. AUTH BYPASSES: Where might permission checks fail?
+4. STATE CORRUPTION: What could break critical invariants?
+
+## Mitigation Patterns
+
+Common security patterns to verify:
+- guards/require statements
+- reentrancy protections
+- access control modifiers
+- input validation
+- permission checks
+
+## Observation Examples
+
+Good examples for graph annotations (2-4 words each):
+- "only owner"
+- "checks balance"
+- "emits Transfer"
+- "immutable"
+- "reentrancy guard"
+- "external call"
+- "nonReentrant"
+- "onlyRole(Role)"
+
+## Graph Types
+
+### Suggested Graph Types for Analysis
+
+**AuthorizationMap**
+Focus: who grants/assumes/authorizes which roles/actions
+Edge types: creates, grants, assumes, authorizes, guarded_by
+
+**PermissionChecks**
+Focus: coverage of access modifiers and require checks per function
+Edge types: guarded_by, unchecked, requires_role
+
+**AssetFlow**
+Focus: mint/burn/transfer/deposit/withdraw across contracts and accounts
+Edge types: mints, burns, transfers, deposits, withdraws
+
+**StateMutation**
+Focus: storage variables and the functions that read/write them
+Edge types: written_by, read_by, derived_from
+
+**UpgradeLifecycle**
+Focus: deployment/initialization/upgrade relationships
+Edge types: deploys, initializes, upgrades, migrates_from
+
+**ExternalDeps**
+Focus: external/oracle/library dependencies and trust boundaries
+Edge types: reads_from, depends_on, trusts, verifies
+
+**Reentrancy/ExternalCalls**
+Focus: external call graph with entrypoints and reentrant paths
+Edge types: calls_external, reentrant_path, invokes_untrusted
+
+**InvariantsMap**
+Focus: key invariants/assumptions and where they're enforced
+Edge types: enforced_by, broken_by, relies_on
+
+**MathAlgorithm**
+Focus: break down core formulas/AMM math into steps/variables
+Edge types: computes, uses_param, normalizes, clamps
+
+**EventMap**
+Focus: which events are emitted by which functions and with what state
+Edge types: emitted_by, indexes, correlates_with
+
+**TimeWindows/RateLimits**
+Focus: time-based gates and limits
+Edge types: gates, bounded_by, cooldown
+
+## External Dependencies Examples
+
+Common external libraries/frameworks to exclude from node creation:
+- OpenZeppelin (smart contract library)
+- Chainlink (oracle network)
+- SafeMath (arithmetic library)
+
+## Node Type Terminology
+
+**Preferred node types:**
+- Function-level nodes (e.g., "func_transfer", "func_mint")
+- Storage-level nodes (e.g., "storage_balances", "storage_owner")
+- Contract-level nodes (only when necessary)
+
+---
+
+# Alternative Example: Web Application Security
+
+```markdown
+# Project-Specific Prompts Configuration
+
+## Domain Information
+
+**Domain Name:** Web Application Security
+**Code Units:** route handlers and services
+**State Concept:** session and database state
+
+## Operating Constraints
+
+- Hound performs static analysis only - it cannot execute code or start the web server.
+- Do NOT propose or assume runtime testing (e.g., starting the server, making HTTP requests, accessing databases).
+- All actions here are CODE-ONLY: loading/reading files, mapping flows, and performing static analysis.
+
+## Code Unit Prioritization (Phase 1)
+
+Target medium-sized units: route handlers, service classes, data access layers
+
+Prioritize components:
+- Handling user input and authentication
+- Accessing sensitive data or databases
+- Implementing authorization logic
+- Processing file uploads or external data
+
+## Vulnerability Categories (Phase 1 - Coverage)
+
+Look for these vulnerability types during systematic analysis:
+- Input validation failures
+- SQL injection vulnerabilities
+- Cross-Site Scripting (XSS)
+- Cross-Site Request Forgery (CSRF)
+- Authentication bypasses
+- Authorization failures
+- Insecure deserialization
+- Security misconfiguration
+- Sensitive data exposure
+
+## High-Impact Focus (Phase 2 - Intuition)
+
+**Primary Impact:** DATA BREACH RISK - prioritize vulnerabilities that lead to unauthorized access or data leakage
+
+**Key Intuition Targets:**
+1. DATA AT RISK: Where can sensitive data be accessed, leaked, or modified without authorization?
+2. CONTRADICTIONS: What doesn't match between authentication claims and actual checks?
+3. AUTH BYPASSES: Where might authentication or session checks be missing or bypassable?
+4. INJECTION VECTORS: What user inputs flow into dangerous sinks (SQL, shell, eval)?
+
+## Mitigation Patterns
+
+Common security patterns to verify:
+- input validation and sanitization
+- parameterized queries / ORM usage
+- authentication middleware
+- authorization decorators
+- CSRF token validation
+- output encoding
+- secure session management
+
+## Observation Examples
+
+Good examples for graph annotations (2-4 words each):
+- "requires auth"
+- "validates input"
+- "SQL injection risk"
+- "XSS vulnerable"
+- "admin only"
+- "CSRF protected"
+- "parameterized query"
+- "sanitized output"
+
+## Graph Types
+
+### Suggested Graph Types for Analysis
+
+**RequestFlow**
+Focus: HTTP routing, middleware chain, and endpoint handlers
+Edge types: routes_to, protected_by, validates, handles
+
+**AuthenticationChain**
+Focus: Authentication, session management, and token handling
+Edge types: authenticates, creates_session, validates_token, requires_login
+
+**DataValidation**
+Focus: Input validation, sanitization, and encoding
+Edge types: validates, sanitizes, encodes, filters
+
+**DatabaseAccess**
+Focus: ORM usage, raw queries, and data access patterns
+Edge types: queries, inserts, updates, deletes, parameterized
+
+**AuthorizationMap**
+Focus: Role-based access control and permission checks
+Edge types: requires_role, grants_access, protected_by, admin_only
+
+**APIEndpoints**
+Focus: External API integrations and third-party services
+Edge types: calls_api, sends_data, receives_data, trusts
+
+**SessionManagement**
+Focus: Session creation, validation, and lifecycle
+Edge types: creates, validates, destroys, stores_in
+
+**FileOperations**
+Focus: File upload, download, and processing flows
+Edge types: uploads, downloads, processes, stores, validates_type
+
+## External Dependencies Examples
+
+Common external libraries/frameworks to exclude from node creation:
+- Express.js (web framework)
+- Django (web framework)
+- Flask (web framework)
+- SQLAlchemy (ORM)
+- Mongoose (ODM)
+- Passport (authentication)
+
+## Node Type Terminology
+
+**Preferred node types:**
+- Function-level nodes (e.g., "func_login", "func_getUserData")
+- Route handler nodes (e.g., "route_POST_/api/users")
+- Middleware nodes (e.g., "middleware_authenticate")
+- Model/schema nodes (only when necessary)
+```
+
+---
+
+# Alternative Example: API Service Security
+
+```markdown
+# Project-Specific Prompts Configuration
+
+## Domain Information
+
+**Domain Name:** API Service Security
+**Code Units:** API endpoints and services
+**State Concept:** application state and data stores
+
+## Operating Constraints
+
+- Hound performs static analysis only - it cannot execute code or make API calls.
+- Do NOT propose or assume runtime testing (e.g., calling endpoints, accessing databases, invoking external APIs).
+- All actions here are CODE-ONLY: loading/reading files, mapping flows, and performing static analysis.
+
+## Code Unit Prioritization (Phase 1)
+
+Target medium-sized units: API endpoints, service classes, data access objects
+
+Prioritize components:
+- Handling authentication and authorization
+- Processing user data and requests
+- Accessing data stores
+- Integrating with external services
+- Implementing rate limiting or throttling
+
+## Vulnerability Categories (Phase 1 - Coverage)
+
+- Broken authentication
+- Excessive data exposure
+- Mass assignment
+- Security misconfiguration
+- Injection flaws
+- Broken access control
+- Missing rate limiting
+- Insecure direct object references
+- Sensitive data exposure
+
+## High-Impact Focus (Phase 2 - Intuition)
+
+**Primary Impact:** UNAUTHORIZED ACCESS - prioritize vulnerabilities that bypass authentication or authorization
+
+**Key Intuition Targets:**
+1. ACCESS CONTROL: Where can users access data or functions beyond their permissions?
+2. DATA LEAKAGE: What sensitive information is exposed through API responses?
+3. INJECTION POINTS: Where do user inputs flow into dangerous operations?
+4. RATE LIMITING: What endpoints lack proper throttling and could be abused?
+
+## Mitigation Patterns
+
+- authentication middleware
+- authorization checks
+- input validation
+- output filtering
+- rate limiting
+- API key validation
+- scope verification
+- data sanitization
+
+## Observation Examples
+
+- "requires JWT"
+- "admin scope"
+- "rate limited"
+- "validates schema"
+- "filters output"
+- "checks ownership"
+- "public endpoint"
+- "authenticated"
+
+## Graph Types
+
+### Suggested Graph Types for Analysis
+
+**EndpointMap**
+Focus: API endpoints, their methods, and authentication requirements
+Edge types: requires_auth, has_scope, rate_limited, public
+
+**AuthenticationFlow**
+Focus: Authentication mechanisms and token validation
+Edge types: authenticates, validates_token, generates_token, refreshes
+
+**DataSerialization**
+Focus: Request/response serialization and data transformation
+Edge types: serializes, deserializes, transforms, filters_fields
+
+**RateLimiting**
+Focus: Rate limiting and throttling mechanisms
+Edge types: limits, throttles, tracks, blocks
+
+**DataAccess**
+Focus: Database queries and data access patterns
+Edge types: queries, creates, updates, deletes, filters
+
+**ExternalAPIs**
+Focus: Third-party API integrations and dependencies
+Edge types: calls, authenticates_with, depends_on, trusts
+
+**PermissionChecks**
+Focus: Authorization and permission verification
+Edge types: requires, checks, grants, denies
+
+## External Dependencies Examples
+
+- Express (Node.js framework)
+- FastAPI (Python framework)
+- Spring Boot (Java framework)
+- JWT libraries
+- ORM/ODM libraries
+
+## Node Type Terminology
+
+**Preferred node types:**
+- Endpoint nodes (e.g., "endpoint_GET_/users/:id")
+- Service method nodes (e.g., "service_UserService_getUser")
+- Middleware nodes (e.g., "middleware_requireAuth")
+```

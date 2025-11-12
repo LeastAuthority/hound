@@ -17,6 +17,7 @@ from pydantic import AliasChoices, BaseModel, Field
 
 from llm.client import LLMClient
 from llm.tokenization import count_tokens
+from utils.prompt_loader import get_prompt_loader
 
 
 @dataclass
@@ -485,6 +486,10 @@ class GraphBuilder:
             self._emit("warn", msg)
             self._emit("sample", msg)
         
+        # Load project-specific graph types
+        prompt_loader = get_prompt_loader()
+        graph_types_section = prompt_loader.get_graph_types_section()
+
         # Allow forcing specific graph type through focus_areas (backward compatibility)
         if focus_areas and "call_graph" in focus_areas:
             system_prompt = f"""Create {max_graphs} call graph(s) showing function/method calls.
@@ -504,7 +509,7 @@ Name it "SystemArchitecture".
 
 DIVERSITY REQUIREMENTS (for remaining graphs):
 - Each additional graph MUST present a distinct analytical lens (do NOT create multiple call graphs).
-- Prefer domain-relevant structures with meaningful, typed relationships (edges with types like grants, authorizes, mints, reads, writes, depends_on, initializes, upgrades, pauses, emits, computes, bounded_by, etc.).
+- Prefer domain-relevant structures with meaningful, typed relationships.
 - Choose graphs that maximize utility for security analysis and understanding, not just topology.
 
 Creativity guidance:
@@ -513,25 +518,15 @@ Creativity guidance:
 - Avoid redundancy across graphs; minimize overlap and pick the most informative lenses.
 
 Ideas for strong, analysis-friendly graphs (pick those that fit this codebase):
-- AuthorizationMap: who grants/assumes/authorizes which roles/actions (edges: creates, grants, assumes, authorizes, guarded_by).
-- PermissionChecks: coverage of access modifiers and require checks per function (edges: guarded_by, unchecked, requires_role).
-- AssetFlow: mint/burn/transfer/deposit/withdraw across contracts and accounts (edges: mints, burns, transfers, deposits, withdraws).
-- StateMutation: storage variables and the functions that read/write them (edges: written_by, read_by, derived_from).
-- UpgradeLifecycle: deployment/initialization/upgrade relationships (edges: deploys, initializes, upgrades, migrates_from).
-- ExternalDeps: external/oracle/library dependencies and trust boundaries (edges: reads_from, depends_on, trusts, verifies).
-- Reentrancy/ExternalCalls: external call graph with entrypoints and reentrant paths (edges: calls_external, reentrant_path, invokes_untrusted).
-- InvariantsMap: key invariants/assumptions and where they’re enforced (edges: enforced_by, broken_by, relies_on).
-- MathAlgorithm: break down core formulas/AMM math into steps/variables (edges: computes, uses_param, normalizes, clamps).
-- EventMap: which events are emitted by which functions and with what state (edges: emitted_by, indexes, correlates_with).
-- TimeWindows/RateLimits: time-based gates and limits (edges: gates, bounded_by, cooldown).
+{graph_types_section}
 
 For each graph, you MUST provide:
 - name: A short name for the graph
 - focus: What this graph focuses on (be specific)
 
 Additionally, provide top-level guidance to help refinement:
-- suggested_node_types: list of node types you plan to use across graphs (e.g., function, storage, role, token, invariant, event)
-- suggested_edge_types: list of edge types you plan to use (e.g., calls, guarded_by, writes, reads, mints, authorizes)
+- suggested_node_types: list of node types you plan to use across graphs
+- suggested_edge_types: list of edge types you plan to use
 
 IMPORTANT: Return EXACTLY {max_graphs} graph{'s' if max_graphs > 1 else ''}, no more, no less.
 The FIRST must be the system/component/flow overview."""

@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from llm.token_tracker import get_token_tracker
 from llm.tokenization import count_tokens
 from llm.unified_client import UnifiedLLMClient
+from utils.prompt_loader import get_prompt_loader
 
 
 class PlanItemSchema(BaseModel):
@@ -129,17 +130,22 @@ class Strategist:
           "exit criteria" into the single 'reasoning' field, avoiding schema churn.
         """
         # Build mode-specific system prompt
+        # Load project-specific prompts
+        prompt_loader = get_prompt_loader()
+        code_units = prompt_loader.get_code_units()
+        constraints = prompt_loader.get_operating_constraints()
+
         if phase_hint == 'Coverage':
+            prioritization = prompt_loader.get_code_unit_prioritization()
+
             system = (
                 "You are a senior security auditor in SWEEP MODE (Phase 1).\n"
                 "Your goal: Systematically analyze each component for vulnerabilities.\n\n"
-                "OPERATING CONSTRAINTS:\n"
-                "- Static analysis only - no runtime execution\n"
-                "- All actions must be CODE-ONLY: reading files, mapping flows, static reasoning\n\n"
+                f"OPERATING CONSTRAINTS:\n{constraints}\n\n"
                 "SWEEP MODE STRATEGY:\n"
-                "- Analyze each medium-sized logical unit (contract/module/class)\n"
+                f"- Analyze each medium-sized logical unit ({code_units}, modules, classes)\n"
                 "- Wide sweep to visit every component and find bugs\n"
-                "- Target medium-sized units: contracts, modules, classes, services\n"
+                f"- Target medium-sized units: {code_units}, modules, classes, services\n"
                 "- NOT individual functions or broad cross-cutting concerns\n"
                 "- Output ASPECT items only — one per component\n"
                 "- Maximum 1 item per component, spread across different modules\n"
@@ -147,33 +153,40 @@ class Strategist:
                 "- If no unanalyzed components remain, return an empty list\n\n"
                 "INVESTIGATION GUIDELINES:\n"
                 "- Focus on achieving broad coverage of unvisited components\n"
-                "- Prioritize components handling critical state or permissions\n"
+            )
+
+            # Add prioritization guidance if available
+            if prioritization:
+                system += f"{prioritization}\n"
+
+            system += (
                 "- Look for common vulnerability patterns\n"
                 "- Avoid repeating completed investigations\n\n"
                 "FOR EACH ITEM include WHY NOW and EXIT CRITERIA in 'reasoning'.\n"
                 "Category should be 'aspect', expected_impact realistic.\n"
             )
         elif phase_hint == 'Saliency':
+            high_impact_focus = prompt_loader.get_high_impact_focus_phase2()
+
             system = (
                 "You are a senior security auditor in INTUITION MODE (Phase 2).\n"
                 "Your goal: Use intuition to find HIGH-IMPACT vulnerabilities.\n\n"
-                "OPERATING CONSTRAINTS:\n"
-                "- Static analysis only - no runtime execution\n"
-                "- All actions must be CODE-ONLY: reading files, mapping flows, static reasoning\n\n"
+                f"OPERATING CONSTRAINTS:\n{constraints}\n\n"
                 "INTUITION MODE STRATEGY:\n"
                 "- Follow your instincts about what feels most vulnerable\n"
                 "- Deep-dive into the most promising, impactful areas\n"
-                "- PRIORITIZE MONETARY IMPACT above all else\n"
+            )
+
+            # Add high-impact focus areas
+            if high_impact_focus:
+                system += f"{high_impact_focus}\n"
+
+            system += (
                 "- Look for CONTRADICTIONS between assumptions and observations\n"
                 "- Target suspicious cross-component interactions\n"
                 "- Focus on invariant violations and high-confidence bugs\n"
                 "- Output primarily SUSPICION items (specific vulnerabilities)\n"
                 "- Flexible granularity - zoom into specific functions or patterns\n\n"
-                "KEY INTUITION TARGETS:\n"
-                "1. VALUE AT RISK: Where can money be stolen or locked?\n"
-                "2. CONTRADICTIONS: What doesn't match between docs and code?\n"
-                "3. AUTH BYPASSES: Where might permission checks fail?\n"
-                "4. STATE CORRUPTION: What could break critical invariants?\n\n"
                 "FOR EACH ITEM include WHY NOW and EXIT CRITERIA in 'reasoning'.\n"
                 "Category should be 'suspicion' for bugs, 'aspect' for deep dives.\n"
             )
@@ -182,9 +195,7 @@ class Strategist:
             system = (
                 "You are a senior security auditor planning an audit roadmap.\n"
                 "You have access to all graphs, annotations, previous findings, and coverage data.\n\n"
-                "OPERATING CONSTRAINTS:\n"
-                "- Static analysis only - no runtime execution\n"
-                "- All actions must be CODE-ONLY: reading files, mapping flows, static reasoning\n\n"
+                f"OPERATING CONSTRAINTS:\n{constraints}\n\n"
                 "Adapt your strategy based on coverage:\n"
                 "- If coverage < 90%: Use Sweep mode (systematic component analysis)\n"
                 "- If coverage >= 90%: Use Intuition mode (deep, high-impact exploration)\n\n"
@@ -370,13 +381,18 @@ class Strategist:
         
         # Use phase parameter if provided, otherwise default to Phase 2 (Saliency)
         is_phase1 = (phase == 'Coverage')
+
+        # Load prompt customizations
+        prompt_loader = get_prompt_loader()
+        vuln_categories = prompt_loader.get_vulnerability_categories_phase1()
+
         if is_phase1:
             system = (
                 "You are a security auditor analyzing code components for vulnerabilities.\n"
                 "Your task: Identify security vulnerabilities in the provided code.\n\n"
                 "INSTRUCTIONS:\n"
                 "- Look for ALL types of vulnerabilities in this component\n"
-                "- Consider issues like: missing validation, access control, overflow, reentrancy, logic errors, etc.\n"
+                f"- Consider issues like: {vuln_categories}\n"
                 "- Provide thorough analysis of the component\n"
                 "- Focus on real, exploitable vulnerabilities\n"
                 "- If there are no vulnerabilities found, say 'NO_HYPOTHESES: true'\n\n"
@@ -386,22 +402,21 @@ class Strategist:
             )
         else:
             # Phase 2 (Saliency) - use the original complex prompt
+            mitigation_patterns = prompt_loader.get_mitigation_patterns()
+            constraints = prompt_loader.get_operating_constraints()
+
             system = (
                 "You are a deep-thinking senior security auditor.\n"
                 "Your job is to: (1) think deeply about the active investigation aspect,\n"
                 "(2) uncover real, non-trivial vulnerabilities as clear hypotheses, and (3) advise the Scout on next steps.\n"
                 "Additionally, if the prepared context reveals other vulnerabilities not strictly tied to the investigation goal, include them as well.\n\n"
-                "OPERATING CONSTRAINTS (IMPORTANT):\n"
-                "- Hound performs static analysis only - it cannot execute code or interact with live systems.\n"
-                "- Do NOT recommend or assume runtime execution or live system probing.\n"
-                "- All GUIDANCE must be CODE-ONLY: which files/functions/classes/methods to inspect and what to verify statically.\n"
-                "- You MAY include a theoretical exploit plan clearly labeled as \"theoretical/manual reproduction outside Hound\".\n\n"
+                f"OPERATING CONSTRAINTS (IMPORTANT):\n{constraints}\n\n"
                 "CRITICAL: Base your analysis on the investigation goal and the exploration/history shown in the context,\n"
                 "but do NOT limit yourself to only that goal — surface ANY vulnerabilities you can justify from the provided context.\n"
                 "ANTI–FALSE-POSITIVE GUARDRAILS:\n"
                 "- Propose a hypothesis only if the ROOT CAUSE is explicitly evidenced in the provided code.\n"
                 "- Cite specific files/functions in Affected Code; include exact node IDs from the graphs.\n"
-                "- Verify that required preconditions are plausible given the code; check for guards/require/reentrancy/permissions that would mitigate the issue.\n"
+                f"- Verify that required preconditions are plausible given the code; check for {mitigation_patterns} that would mitigate the issue.\n"
                 "- If evidence is weak or ambiguous, lower confidence to low or omit the hypothesis entirely.\n"
                 "- Prefer fewer, higher-quality hypotheses over speculative ones.\n"
                 "DEDUPLICATION:\n"
