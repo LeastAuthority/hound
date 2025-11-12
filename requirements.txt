@@ -16,6 +16,7 @@ pyyaml>=6.0
 
 # Async Support
 httpx>=0.25.0
+requests>=2.31.0
 
 # Data Processing
 orjson>=3.9.0

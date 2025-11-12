@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Hound - AI-powered security analysis system."""
 
+import os
 import sys
 from pathlib import Path
 
@@ -59,9 +60,19 @@ app.add_typer(graph_app, name="graph")
 graphs_app = typer.Typer(help="Bulk graph operations (all graphs)")
 app.add_typer(graphs_app, name="graphs")
 
+# Helper to ensure LLM verbose logging when debug mode is requested
+def _maybe_enable_llm_verbose(debug: bool | None) -> None:
+    """Force verbose LLM logging whenever --debug is enabled."""
+    if not debug:
+        return
+    os.environ["HOUND_LLM_VERBOSE"] = "1"
+
+
 # Helper to invoke Click command functions without noisy tracebacks
 def _invoke_click(cmd_func, params: dict):
     import click
+    if params and params.get('debug'):
+        _maybe_enable_llm_verbose(params.get('debug'))
     ctx = click.Context(cmd_func)
     ctx.params = params or {}
     try:
@@ -316,6 +327,7 @@ def agent_audit(
 ):
     """Run autonomous security audit (plans investigations automatically)."""
 
+    _maybe_enable_llm_verbose(debug)
     from commands.agent import agent as agent_command
     
     manager = ProjectManager()
@@ -419,6 +431,7 @@ def agent_investigate(
     model: str = typer.Option(None, "--model", help="Override LLM model (e.g., gpt-4, claude-3)")
 ):
     """Run targeted investigation with a specific prompt."""
+    _maybe_enable_llm_verbose(debug)
     manager = ProjectManager()
     project_id = None
     
@@ -573,7 +586,7 @@ def graph_build(
     debug: bool = typer.Option(False, "--debug", "-d", help="Enable debug output")
 ):
     """Build system architecture graph from source code."""
-    
+    _maybe_enable_llm_verbose(debug)
     manager = ProjectManager()
     resolved_project_name = None
     
@@ -645,6 +658,7 @@ def graph_ingest(
     debug: bool = typer.Option(False, "--debug", "-d", help="Enable debug output")
 ):
     """Ingest repository to create manifest and bundles."""
+    _maybe_enable_llm_verbose(debug)
     from commands.graph import ingest as graph_ingest_impl
     manager = ProjectManager()
     
@@ -691,6 +705,7 @@ def graph_custom(
 
     Shows the designed schema on the CLI, then builds and refines the graph.
     """
+    _maybe_enable_llm_verbose(debug)
     from commands.graph import custom as graph_custom_impl
 
     graph_custom_impl(
@@ -716,6 +731,7 @@ def graph_refine(
     debug: bool = typer.Option(False, "--debug", "-d", help="Enable debug output")
 ):
     """Refine existing graphs (incremental saves). Provide a name or use --all."""
+    _maybe_enable_llm_verbose(debug)
     from commands.graph import build as graph_build_impl
     manager = ProjectManager()
     proj = manager.get_project(project)
@@ -1090,6 +1106,8 @@ def finalize(
     from commands.finalize import finalize as finalize_command
     
     console.print("[bold cyan]Running hypothesis finalization...[/bold cyan]")
+
+    _maybe_enable_llm_verbose(debug)
     
     # Create Click context and invoke
     ctx = click.Context(finalize_command)
@@ -1127,6 +1145,7 @@ def report(
     from commands.report import report as report_command
     
     console.print("[bold cyan]Generating security audit report...[/bold cyan]")
+    _maybe_enable_llm_verbose(debug)
     
     # Create Click context and invoke
     ctx = click.Context(report_command)
@@ -1159,6 +1178,7 @@ def poc_make_prompt(
     from commands.poc import make_prompt
     
     console.print("[bold cyan]Generating PoC prompts...[/bold cyan]")
+    _maybe_enable_llm_verbose(debug)
     
     # Load config
     from utils.config_loader import load_config
