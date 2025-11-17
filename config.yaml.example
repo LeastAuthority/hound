@@ -28,21 +28,21 @@ xai:
 models:
   # Graph building model - needs large context
   graph:
-    # GPT-4.1 WORKS WELL HERE BUT IS VERY EXPENSIVE!
-    # provider: openai
-    # model: gpt-4.1 
-    # max_context: 1000000
-
-    provider: gemini
-    model: gemini-2.5-pro
+    #GPT-4.1 WORKS WELL HERE BUT IS VERY EXPENSIVE!
+    provider: openai
+    model: gpt-4.1 
     max_context: 1000000
-    thinking_enabled: true
-    thinking_budget: -1
+
+    #provider: gemini
+    #model: gemini-2.5-pro
+    #max_context: 1000000
+    #thinking_enabled: true
+    #thinking_budget: -1
     
   # Scout/agent model for exploration
   scout:
     provider: openai
-    model: gpt-5-mini
+    model: gpt-5
     max_context: 256000
     # reasoning_effort: low
   
@@ -50,22 +50,22 @@ models:
   # For planning and reasoning about security issues
   strategist:
     provider: openai
-    model: gpt-5
+    model: gpt-5-pro
     max_context: 256000
-    plan_reasoning_effort: medium
-    hypothesize_reasoning_effort: high
+    #plan_reasoning_effort: high
+    #hypothesize_reasoning_effort: high
   
   # Lightweight utility model for quick, low-cost tasks (e.g., dedup)
   lightweight:
     provider: openai
-    model: gpt-4o-mini
+    model: gpt-5-mini
     # No large context or special reasoning required
   
   # QA model
   finalize:
     provider: openai
-    model: gpt-5
-    reasoning_effort: high
+    model: gpt-5-pro
+    # reasoning_effort: high
     # No max_context specified - will use global default
     # reasoning_effort: medium  # Options: low, medium, high (GPT-5 models only)
   
@@ -82,7 +82,7 @@ context:
 
 # Timeouts and retries
 timeouts:
-  request_seconds: 300
+  request_seconds: 60000
 
 retries:
   max_attempts: 3
